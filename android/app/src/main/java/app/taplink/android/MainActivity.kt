@@ -54,7 +54,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import app.taplink.android.ui.theme.TapLinkTheme
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.currentSessionOrNull
 import kotlinx.coroutines.launch
 
 private val Ink = Color(0xFF10131A)
@@ -88,7 +87,7 @@ private fun TapLinkApp() {
 
     LaunchedEffect(selectedTab) {
         if (selectedTab == 1) {
-            val userId = TapLinkBackend.client.auth.currentSessionOrNull()?.user?.id
+            val userId = TapLinkBackend.client.auth.currentSessionOrNull?.user?.id
             if (userId != null) {
                 try {
                     val profile = ProfileRepository.load(userId)
