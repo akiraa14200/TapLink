@@ -87,7 +87,7 @@ private fun TapLinkApp() {
 
     LaunchedEffect(selectedTab) {
         if (selectedTab == 1) {
-            val userId = TapLinkBackend.client.auth.currentSessionOrNull?.user?.id
+            val userId = TapLinkBackend.client.auth.currentSessionOrNull()?.user?.id
             if (userId != null) {
                 try {
                     val profile = ProfileRepository.load(userId)
