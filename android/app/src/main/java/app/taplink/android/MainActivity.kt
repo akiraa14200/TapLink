@@ -1,6 +1,9 @@
 package app.taplink.android
 
 import android.os.Bundle
+import android.nfc.NfcAdapter
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -387,6 +390,17 @@ private fun ProfileField(
 
 @Composable
 private fun ShareScreen(username: String) {
+    val context = LocalContext.current
+    val hasHce = context.packageManager.hasSystemFeature("android.hardware.nfc.hce")
+    val nfcEnabled = NfcAdapter.getDefaultAdapter(context)?.isEnabled == true
+
+    LaunchedEffect(username) {
+        context.getSharedPreferences("taplink_nfc", Context.MODE_PRIVATE)
+            .edit()
+            .putString("username", username)
+            .apply()
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -401,10 +415,24 @@ private fun ShareScreen(username: String) {
         Spacer(Modifier.height(24.dp))
         Text("Share your profile", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("taplink.app/@${username.ifBlank { "yourusername" }}", color = Muted)
+        Spacer(Modifier.height(14.dp))
+        Text(
+            when {
+                !hasHce -> "This phone does not support NFC card emulation."
+                !nfcEnabled -> "Turn on NFC in Android Settings to test phone sharing."
+                else -> "NFC card-emulation prototype is ready on this phone."
+            },
+            color = if (hasHce && nfcEnabled) Accent else Muted,
+            fontWeight = FontWeight.SemiBold
+        )
         Spacer(Modifier.height(8.dp))
-        Text("Your QR code and NFC tag controls will appear here.", color = Muted)
+        Text(
+            "Prototype only: the receiving phone needs NFC enabled and a compatible NFC reader app. The taplink.app address is a placeholder until the public profile website is deployed.",
+            color = Muted,
+            style = MaterialTheme.typography.bodySmall
+        )
         Spacer(Modifier.height(18.dp))
-        Button(onClick = {}, enabled = false) { Text("Generate QR code — coming next") }
+        Button(onClick = {}, enabled = false) { Text("QR sharing — coming next") }
     }
 }
 
