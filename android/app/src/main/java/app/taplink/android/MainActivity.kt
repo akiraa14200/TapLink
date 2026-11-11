@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
@@ -30,12 +32,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,6 +47,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import app.taplink.android.ui.theme.TapLinkTheme
 
@@ -65,7 +71,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun TapLinkApp() {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val titles = listOf("Home", "Edit profile", "Share", "Settings")
+    var displayName by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var bio by remember { mutableStateOf("") }
+    var instagram by remember { mutableStateOf("") }
+    var youtube by remember { mutableStateOf("") }
+    var website by remember { mutableStateOf("") }
 
     Scaffold(
         containerColor = Ink,
@@ -93,9 +104,31 @@ private fun TapLinkApp() {
             color = Ink
         ) {
             when (selectedTab) {
-                0 -> HomeScreen(onShare = { selectedTab = 2 }, onEdit = { selectedTab = 1 })
-                1 -> EditProfileScreen()
-                2 -> ShareScreen()
+                0 -> HomeScreen(
+                    displayName = displayName,
+                    username = username,
+                    onShare = { selectedTab = 2 },
+                    onEdit = { selectedTab = 1 }
+                )
+                1 -> EditProfileScreen(
+                    displayName = displayName,
+                    onDisplayNameChange = { displayName = it },
+                    username = username,
+                    onUsernameChange = {
+                        username = it.lowercase().filter { char ->
+                            char.isLetterOrDigit() || char == '.' || char == '_'
+                        }
+                    },
+                    bio = bio,
+                    onBioChange = { bio = it },
+                    instagram = instagram,
+                    onInstagramChange = { instagram = it },
+                    youtube = youtube,
+                    onYoutubeChange = { youtube = it },
+                    website = website,
+                    onWebsiteChange = { website = it }
+                )
+                2 -> ShareScreen(username = username)
                 else -> SettingsScreen()
             }
         }
@@ -103,9 +136,15 @@ private fun TapLinkApp() {
 }
 
 @Composable
-private fun HomeScreen(onShare: () -> Unit, onEdit: () -> Unit) {
+private fun HomeScreen(
+    displayName: String,
+    username: String,
+    onShare: () -> Unit,
+    onEdit: () -> Unit
+) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 24.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -131,12 +170,12 @@ private fun HomeScreen(onShare: () -> Unit, onEdit: () -> Unit) {
                         Icon(Icons.Outlined.Person, contentDescription = null, tint = Accent, modifier = Modifier.size(30.dp))
                     }
                     Column {
-                        Text("Your name", color = Color.White, fontWeight = FontWeight.SemiBold)
-                        Text("@yourusername", color = Muted, style = MaterialTheme.typography.bodySmall)
+                        Text(displayName.ifBlank { "Your name" }, color = Color.White, fontWeight = FontWeight.SemiBold)
+                        Text("@${username.ifBlank { "yourusername" }}", color = Muted, style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 Text("Your public profile link", color = Muted, style = MaterialTheme.typography.labelMedium)
-                Text("taplink.app/@yourusername", color = Color.White, fontWeight = FontWeight.Medium)
+                Text("taplink.app/@${username.ifBlank { "yourusername" }}", color = Color.White, fontWeight = FontWeight.Medium)
                 Button(
                     onClick = onShare,
                     modifier = Modifier.fillMaxWidth(),
@@ -179,16 +218,101 @@ private fun SetupStep(number: String, title: String, description: String) {
 }
 
 @Composable
-private fun EditProfileScreen() {
-    PlaceholderScreen(
-        title = "Build your profile",
-        description = "Your name, username, bio, profile photo and social links will be managed here.",
-        note = "Profile editing UI is the next implementation step."
-    )
+private fun EditProfileScreen(
+    displayName: String,
+    onDisplayNameChange: (String) -> Unit,
+    username: String,
+    onUsernameChange: (String) -> Unit,
+    bio: String,
+    onBioChange: (String) -> Unit,
+    instagram: String,
+    onInstagramChange: (String) -> Unit,
+    youtube: String,
+    onYoutubeChange: (String) -> Unit,
+    website: String,
+    onWebsiteChange: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("Edit your profile", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Create the public identity people will see when they open your TapLink.", color = Muted)
+
+        ProfileField("Display name", displayName, onDisplayNameChange, "How should people know you?")
+        ProfileField(
+            "Username",
+            username,
+            onUsernameChange,
+            "yourname",
+            prefix = "@",
+            supporting = "Use letters, numbers, dots or underscores."
+        )
+        ProfileField("Bio", bio, onBioChange, "A short introduction about you.", singleLine = false)
+        Text("SOCIAL LINKS", color = Muted, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        ProfileField("Instagram", instagram, onInstagramChange, "https://instagram.com/username")
+        ProfileField("YouTube", youtube, onYoutubeChange, "https://youtube.com/@channel")
+        ProfileField("Website", website, onWebsiteChange, "https://yourwebsite.com")
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = Panel)
+        ) {
+            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("PROFILE PREVIEW", color = Accent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                Text(displayName.ifBlank { "Your display name" }, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                Text("@${username.ifBlank { "yourusername" }}", color = Muted)
+                Text(bio.ifBlank { "Your bio will appear here." }, color = Color.White)
+                val links = listOf(
+                    "Instagram" to instagram,
+                    "YouTube" to youtube,
+                    "Website" to website
+                ).filter { it.second.isNotBlank() }
+                links.forEach { (label, _) ->
+                    Text(label, color = Accent, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+        Text(
+            "This is a live preview only. Your profile will be saved online after account and database setup.",
+            color = Muted,
+            style = MaterialTheme.typography.bodySmall
+        )
+        Spacer(Modifier.height(12.dp))
+    }
 }
 
 @Composable
-private fun ShareScreen() {
+private fun ProfileField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    prefix: String? = null,
+    supporting: String? = null,
+    singleLine: Boolean = true
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Text(label, color = Color.White, fontWeight = FontWeight.SemiBold)
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(placeholder, color = Muted) },
+            prefix = prefix?.let { { Text(it, color = Accent) } },
+            supportingText = supporting?.let { { Text(it, color = Muted) } },
+            singleLine = singleLine,
+            minLines = if (singleLine) 1 else 3,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+}
+
+@Composable
+private fun ShareScreen(username: String) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -202,6 +326,8 @@ private fun ShareScreen() {
         }
         Spacer(Modifier.height(24.dp))
         Text("Share your profile", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("taplink.app/@${username.ifBlank { "yourusername" }}", color = Muted)
+        Spacer(Modifier.height(8.dp))
         Text("Your QR code and NFC tag controls will appear here.", color = Muted)
         Spacer(Modifier.height(18.dp))
         Button(onClick = {}, enabled = false) { Text("Generate QR code — coming next") }
