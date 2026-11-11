@@ -37,10 +37,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +53,9 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import app.taplink.android.ui.theme.TapLinkTheme
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.currentSessionOrNull
+import kotlinx.coroutines.launch
 
 private val Ink = Color(0xFF10131A)
 private val Muted = Color(0xFF8D96A8)
@@ -77,6 +82,35 @@ private fun TapLinkApp() {
     var instagram by remember { mutableStateOf("") }
     var youtube by remember { mutableStateOf("") }
     var website by remember { mutableStateOf("") }
+    var profileMessage by remember { mutableStateOf("") }
+    var profileBusy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(selectedTab) {
+        if (selectedTab == 1) {
+            val userId = TapLinkBackend.client.auth.currentSessionOrNull()?.user?.id
+            if (userId != null) {
+                try {
+                    val profile = ProfileRepository.load(userId)
+                    if (profile != null) {
+                        displayName = profile.displayName
+                        username = profile.username
+                        bio = profile.bio
+                        instagram = profile.instagramUrl
+                        youtube = profile.youtubeUrl
+                        website = profile.websiteUrl
+                        profileMessage = "Your saved profile is loaded."
+                    } else {
+                        profileMessage = "Create your profile, then save it to your account."
+                    }
+                } catch (error: Exception) {
+                    profileMessage = error.message ?: "Couldn't load your profile."
+                }
+            } else {
+                profileMessage = "Sign in from Settings before saving your profile."
+            }
+        }
+    }
 
     Scaffold(
         containerColor = Ink,
@@ -126,7 +160,39 @@ private fun TapLinkApp() {
                     youtube = youtube,
                     onYoutubeChange = { youtube = it },
                     website = website,
-                    onWebsiteChange = { website = it }
+                    onWebsiteChange = { website = it },
+                    profileMessage = profileMessage,
+                    isSaving = profileBusy,
+                    onSave = {
+                        scope.launch {
+                            val userId = TapLinkBackend.client.auth.currentSessionOrNull()?.user?.id
+                            if (userId == null) {
+                                profileMessage = "Sign in from Settings before saving your profile."
+                            } else if (!username.matches(Regex("^[a-z0-9._]{3,30}$"))) {
+                                profileMessage = "Choose a username with 3–30 letters, numbers, dots or underscores."
+                            } else {
+                                profileBusy = true
+                                try {
+                                    ProfileRepository.save(
+                                        TapLinkProfile(
+                                            id = userId,
+                                            username = username,
+                                            displayName = displayName,
+                                            bio = bio,
+                                            instagramUrl = instagram,
+                                            youtubeUrl = youtube,
+                                            websiteUrl = website
+                                        )
+                                    )
+                                    profileMessage = "Profile saved securely to your TapLink account."
+                                } catch (error: Exception) {
+                                    profileMessage = error.message ?: "Profile couldn't be saved. Check your username and try again."
+                                } finally {
+                                    profileBusy = false
+                                }
+                            }
+                        }
+                    }
                 )
                 2 -> ShareScreen(username = username)
                 else -> SettingsScreen()
@@ -230,7 +296,10 @@ private fun EditProfileScreen(
     youtube: String,
     onYoutubeChange: (String) -> Unit,
     website: String,
-    onWebsiteChange: (String) -> Unit
+    onWebsiteChange: (String) -> Unit,
+    profileMessage: String,
+    isSaving: Boolean,
+    onSave: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -275,11 +344,17 @@ private fun EditProfileScreen(
                 }
             }
         }
-        Text(
-            "This is a live preview only. Your profile will be saved online after account and database setup.",
-            color = Muted,
-            style = MaterialTheme.typography.bodySmall
-        )
+        Button(
+            onClick = onSave,
+            enabled = !isSaving,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = Ink)
+        ) {
+            Text(if (isSaving) "Saving…" else "Save profile")
+        }
+        if (profileMessage.isNotBlank()) {
+            Text(profileMessage, color = Muted, style = MaterialTheme.typography.bodySmall)
+        }
         Spacer(Modifier.height(12.dp))
     }
 }
