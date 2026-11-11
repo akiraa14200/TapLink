@@ -336,11 +336,7 @@ private fun ShareScreen(username: String) {
 
 @Composable
 private fun SettingsScreen() {
-    PlaceholderScreen(
-        title = "Settings",
-        description = "Manage account, privacy, appearance and connected NFC tags.",
-        note = "Settings will be connected after the profile foundation."
-    )
+    AccountScreen()
 }
 
 @Composable
