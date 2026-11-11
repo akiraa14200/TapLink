@@ -1,12 +1,8 @@
 package app.taplink.android
 
-import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.filter.eq
+import io.github.jan.supabase.postgrest.from
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable
 data class TapLinkProfile(
@@ -23,19 +19,18 @@ data class TapLinkProfile(
 
 object ProfileRepository {
     suspend fun load(userId: String): TapLinkProfile? =
-        TapLinkBackend.client.postgrest["profiles"]
+        TapLinkBackend.client.from("profiles")
             .select {
-                eq("id", userId)
+                filter {
+                    eq("id", userId)
+                }
             }
             .decodeList<TapLinkProfile>()
             .firstOrNull()
 
     suspend fun save(profile: TapLinkProfile) {
-        val payload = JsonArray(listOf(Json.encodeToJsonElement(profile)))
-        TapLinkBackend.client.postgrest["profiles"].insert(
-            payload,
-            upsert = true,
+        TapLinkBackend.client.from("profiles").upsert(profile) {
             onConflict = "id"
-        )
+        }
     }
 }
